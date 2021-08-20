@@ -1,0 +1,152 @@
+<!--
+	IMPORTANT:
+	- Policy elements can appear only within the <inbound>, <outbound>, <backend> section elements.
+	- Only the <forward-request> policy element can appear within the <backend> section element.
+	- To apply a policy to the incoming request (before it is forwarded to the backend service), place a corresponding policy element within the <inbound> section element.
+	- To apply a policy to the outgoing response (before it is sent back to the caller), place a corresponding policy element within the <outbound> section element.
+	- To add a policy position the cursor at the desired insertion point and click on the round button associated with the policy.
+	- To remove a policy, delete the corresponding policy statement from the policy document.
+	- Policies are applied in the order of their appearance, from the top down.
+-->
+<policies>
+	<inbound>
+		<cors allow-credentials="true">
+            <allowed-origins>
+                ORIGIN_PLACE_HOLDER
+            </allowed-origins>
+            <allowed-methods preflight-result-max-age="5">
+                <method>OPTIONS</method>
+                <method>GET</method>
+                <method>POST</method>
+				<method>PUT</method>
+            </allowed-methods>
+            <allowed-headers>
+                <header>Authorization</header>
+                <header>Content-Type</header>
+                <header>Accept</header>
+				<header>Ocp-Apim-Subscription-Key</header>
+				<header>Access-Control-Request-Headers</header>
+				<header>Access-Control-Request-Method</header>
+				<header>X-Correlation-ID</header>
+				<header>Cache-Control</header>
+				<header>Pragma</header>
+            </allowed-headers>
+        </cors>
+		<choose>
+			<!-- This can be a whitelist of endpoints without auth -->
+			<when condition="@(context.Request.Url.Path.EndsWith("version", true, null)
+				|| context.Request.Url.Path.EndsWith("health", true, null))" />
+
+			<!-- Dont accept 2 auth headers, return 400 -->
+			<when condition="@(
+				context.Request.Headers.ContainsKey("Authorization")
+				&& context.Request.Headers.ContainsKey("Ocp-Apim-Subscription-Key")
+			)">
+				<return-response>
+					<set-status code="400" reason="Bad Request" />
+					<set-body>Request can't have both Authorization and Ocp-Apim-Subscription-Key headers</set-body>
+				</return-response>
+			</when>
+
+			<!-- Do api key comparison for signin -->
+			<when condition="@(context.Request.Url.Path.EndsWith("signin", true, null))">
+				<set-variable name="authHeader" value="@(context.Request.Headers.GetValueOrDefault("Authorization", ""))" />
+			</when>
+
+			<!-- JWT auth for external endpoints -->
+			<when condition="@(context.Request.Headers.ContainsKey("Authorization"))">
+				<set-variable name="authScheme" value="@(context.Request.Headers.GetValueOrDefault("Authorization", "").Split(' ')[0])" />
+				<choose>
+					<when condition="@(!context.Request.OriginalUrl.Path.Contains("/external"))">
+						<return-response>
+							<set-status code="401" reason="Unauthorized" />
+							<set-body>API does not use Bearer JWT authentication scheme</set-body>
+						</return-response>
+					</when>
+					<when condition="@(string.IsNullOrWhiteSpace(context.Variables["authScheme"] as string))">
+						<return-response>
+							<set-status code="401" reason="Unauthorized" />
+							<set-body>The value of Authorization cannot be EMPTY</set-body>
+						</return-response>
+					</when>
+					<when condition="@((context.Variables["authScheme"] as string).ToLower() == "bearer")">
+						<set-variable name="userId" value="@{
+							string[] authHeaderParts = context.Request.Headers.GetValueOrDefault("Authorization", "")?.Split(' ');
+							Jwt jwt;
+							return authHeaderParts[1].TryParseJwt(out jwt) ? jwt.Claims.GetValueOrDefault("uid", "") : "";
+						}" />
+						<set-variable name="customerId" value="@{
+							string[] authHeaderParts = context.Request.Headers.GetValueOrDefault("Authorization", "")?.Split(' ');
+							Jwt jwt;
+							return authHeaderParts[1].TryParseJwt(out jwt) ? jwt.Claims.GetValueOrDefault("customerId", "") : "";
+						}" />
+						<set-variable name="roles" value="@{
+							string[] authHeaderParts = context.Request.Headers.GetValueOrDefault("Authorization", "")?.Split(' ');
+							Jwt jwt;
+							return authHeaderParts[1].TryParseJwt(out jwt) ? jwt.Claims.GetValueOrDefault("userRoles", "") : "";
+						}" />
+						<validate-jwt header-name="Authorization" failed-validation-httpcode="401" failed-validation-error-message="Unauthorized" require-expiration-time="true" require-scheme="Bearer">
+							<openid-config url="{{authorization-server-url}}" />
+							<audiences>
+								<audience>{{authorization-server-audience}}</audience>
+							</audiences>
+							<issuers>
+								<issuer>{{authorization-server-issuer}}</issuer>
+							</issuers>
+						</validate-jwt>
+					</when>
+					<otherwise>
+						<return-response>
+							<set-status code="401" reason="Unauthorized" />
+							<set-body>Authentication scheme must be Bearer</set-body>
+						</return-response>
+					</otherwise>
+				</choose>
+			</when>
+
+			<!-- Subscription auth for internal endpoints -->
+			<when condition="@(context.Request.Headers.ContainsKey("Ocp-Apim-Subscription-Key"))">
+				<choose>
+					<when condition="@(!context.Request.OriginalUrl.Path.Contains("/internal"))">
+						<return-response>
+							<set-status code="401" reason="Unauthorized" />
+							<set-body>API does not use Subscription authentication scheme</set-body>
+						</return-response>
+					</when>
+				</choose>
+			</when>
+
+			<!-- Everything else. That dont have auth headers -->
+			<otherwise>
+				<return-response>
+					<set-status code="401" reason="Unauthorized" />
+					<set-header name="Url-Path" exists-action="override">
+						<value>@(context.Request.OriginalUrl.Path)</value>
+					</set-header>
+					<set-body>Either Authorization or Ocp-Apim-Subscription-Key header must be present</set-body>
+				</return-response>
+			</otherwise>
+		</choose>
+	</inbound>
+	<backend>
+		<forward-request />
+	</backend>
+	<outbound />
+	<on-error>
+		<set-header name="ErrorSource" exists-action="override">
+			<value>@(context.LastError.Source)</value>
+		</set-header>
+		<set-header name="ErrorReason" exists-action="override">
+			<value>@(context.LastError.Reason)</value>
+		</set-header>
+		<set-header name="ErrorMessage" exists-action="override">
+			<value>@(context.LastError.Message)</value>
+		</set-header>
+		<set-header name="ErrorScope" exists-action="override">
+			<value>@(context.LastError.Scope)</value>
+		</set-header>
+		<set-header name="ErrorSection" exists-action="override">
+			<value>@(context.LastError.Section)</value>
+		</set-header>
+	</on-error>
+</policies>

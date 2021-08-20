@@ -1,0 +1,176 @@
+parameters:
+    vmImage: ''
+    stages:
+        - 
+            dependsOn: ''
+            environment:
+                name: ''
+                abbreviation:
+                    upperCase: ''
+                    lowerCase: ''
+            resourceGroup: ''
+            serviceConnection: ''
+            condition: ''
+            variableGroupName: ''
+stages:
+    - 
+        '${{each stage in parameters.stages}}':
+            - 
+                stage: '${{stage.environment.abbreviation.upperCase}}_Deploy_APIM'
+                displayName: '(${{stage.environment.abbreviation.lowerCase}}) APIM Service'
+                "${{ if ne(stage.dependsOn, '') }}":
+                    dependsOn: '${{stage.dependsOn}}'
+                "${{ if ne(stage.condition, '') }}":
+                    condition: '${{stage.condition}}'
+                jobs:
+                    - 
+                        deployment: '${{stage.environment.name}}'
+                        displayName: 'Deploy to ${{stage.environment.abbreviation.upperCase}}'
+                        environment: '${{stage.environment.abbreviation.upperCase}}'
+                        timeoutInMinutes: 120
+                        variables:
+                            - group: '${{stage.variableGroupName}}'
+                        pool:
+                            vmImage: '${{parameters.vmImage}}'
+                        strategy:
+                            runOnce:
+                                deploy:
+                                    steps:
+                                        - 
+                                            checkout: self
+                                        - 
+                                            task: AzureCLI@2
+                                            displayName: 'Validate ${{stage.environment.abbreviation.upperCase}} deployment arm template'
+                                            inputs:
+                                                azureSubscription: '${{ stage.serviceConnection }}'
+                                                scriptType: bash
+                                                scriptLocation: inlineScript
+                                                inlineScript: |
+                                                    az deployment group validate \
+                                                    --resource-group ${{ stage.resourceGroup }} \
+                                                    --template-file src/100-apim.json \
+                                                    --parameters src/100-apim-${{stage.environment.abbreviation.lowerCase}}.parameters.json \
+                                                    apimCertificatePassword=$(${{stage.environment.abbreviation.lowerCase}}-apim-cert-password) \
+                                                    --name 100-apim \
+                                                    --debug
+                                        - 
+                                            task: AzureCLI@2
+                                            displayName: 'Apply ${{stage.environment.abbreviation.upperCase}} deployment arm template'
+                                            inputs:
+                                                azureSubscription: '${{ stage.serviceConnection }}'
+                                                scriptType: bash
+                                                scriptLocation: inlineScript
+                                                inlineScript: |
+                                                    az deployment group create \
+                                                    --resource-group ${{ stage.resourceGroup }} \
+                                                    --template-file src/100-apim.json \
+                                                    --parameters src/100-apim-${{stage.environment.abbreviation.lowerCase}}.parameters.json \
+                                                    apimCertificatePassword=$(${{stage.environment.abbreviation.lowerCase}}-apim-cert-password) \
+                                                    --name 100-apim \
+                                                    --debug
+                                        - 
+                                            task: AzureCLI@2
+                                            displayName: 'Validate 101-apim-namevalues arm template'
+                                            inputs:
+                                                azureSubscription: '${{ stage.serviceConnection }}'
+                                                scriptType: bash
+                                                scriptLocation: inlineScript
+                                                inlineScript: |
+                                                    az deployment group validate \
+                                                    --resource-group ${{ stage.resourceGroup }} \
+                                                    --template-file src/101-apim-namevalues.json \
+                                                    --parameters src/101-apim-namevalues-${{stage.environment.abbreviation.lowerCase}}.parameters.json \
+                                                    yourexternalIdentityProviderApiKey=$(${{stage.environment.abbreviation.lowerCase}}-external-gw-idprovider-api-key) \
+                                                    --name 101-apim-namevalues \
+                                                    --debug
+                                        - 
+                                            task: AzureCLI@2
+                                            displayName: 'Apply 101-apim-namevalues arm template'
+                                            inputs:
+                                                azureSubscription: '${{ stage.serviceConnection }}'
+                                                scriptType: bash
+                                                scriptLocation: inlineScript
+                                                inlineScript: |
+                                                    az deployment group create \
+                                                    --resource-group ${{ stage.resourceGroup }} \
+                                                    --template-file src/101-apim-namevalues.json \
+                                                    --parameters src/101-apim-namevalues-${{stage.environment.abbreviation.lowerCase}}.parameters.json \
+                                                    yourexternalIdentityProviderApiKey=$(${{stage.environment.abbreviation.lowerCase}}-external-gw-idprovider-api-key) \
+                                                    --name 101-apim-namevalues \
+                                                    --debug
+                                        - 
+                                            task: AzureCLI@2
+                                            displayName: 'Validate 102-apim-authserver arm template'
+                                            inputs:
+                                                azureSubscription: '${{ stage.serviceConnection }}'
+                                                scriptType: bash
+                                                scriptLocation: inlineScript
+                                                inlineScript: |
+                                                    az deployment group validate \
+                                                    --resource-group ${{ stage.resourceGroup }} \
+                                                    --template-file src/102-apim-authserver.json \
+                                                    --parameters src/102-apim-authserver-${{stage.environment.abbreviation.lowerCase}}.parameters.json \
+                                                    clientId=$(${{stage.environment.abbreviation.lowerCase}}-apim-idprovider-client-id) \
+                                                    clientSecret=$(${{stage.environment.abbreviation.lowerCase}}-apim-idprovider-client-secret) \
+                                                    --name 102-apim-authserver \
+                                                    --debug
+                                        - 
+                                            task: AzureCLI@2
+                                            displayName: 'Apply 102-apim-authserver arm template'
+                                            timeoutInMinutes: 120
+                                            inputs:
+                                                azureSubscription: '${{ stage.serviceConnection }}'
+                                                scriptType: bash
+                                                scriptLocation: inlineScript
+                                                inlineScript: |
+                                                    az deployment group create \
+                                                    --resource-group ${{ stage.resourceGroup }} \
+                                                    --template-file src/102-apim-authserver.json \
+                                                    --parameters src/102-apim-authserver-${{stage.environment.abbreviation.lowerCase}}.parameters.json \
+                                                    clientId=$(${{stage.environment.abbreviation.lowerCase}}-apim-idprovider-client-id) \
+                                                    clientSecret=$(${{stage.environment.abbreviation.lowerCase}}-apim-idprovider-client-secret) \
+                                                    --name 102-apim-authserver \
+                                                    --debug
+                                        - 
+                                            task: Bash@3
+                                            displayName: Prepare managed apim policies specification
+                                            inputs:
+                                                targetType: inline
+                                                script: |
+                                                    cors="$(cat src/policies/template.apim.service-policies.${{stage.environment.abbreviation.lowerCase}}.parameters.txt | tr -d '\n' | tr -s ' ')"
+                                                    document="$(cat src/policies/template.apim.service-policies.xml | tr -d '\n\t' | tr -s ' ')"
+                                                    policy=$(sed "s|ORIGIN_PLACE_HOLDER|$cors|g" <<< $document)
+                                                    echo "##vso[task.setvariable variable=content;]$policy"
+                                        - 
+                                            task: AzureCLI@2
+                                            displayName: 'Validate 110-apim-policies-global arm template'
+                                            inputs:
+                                                azureSubscription: '${{ stage.serviceConnection }}'
+                                                scriptType: bash
+                                                scriptLocation: inlineScript
+                                                inlineScript: |
+                                                    az deployment group validate \
+                                                    --resource-group ${{ stage.resourceGroup }} \
+                                                    --template-file src/110-apim-policies-global.json \
+                                                    --parameters \
+                                                        environment=${{stage.environment.abbreviation.lowerCase}} \
+                                                        policiesContent="$CONTENT" \
+                                                    --name 110-apim-policies-global \
+                                                    --debug
+                                        - 
+                                            task: AzureCLI@2
+                                            displayName: 'Apply 110-apim-policies-global arm template'
+                                            timeoutInMinutes: 120
+                                            inputs:
+                                                azureSubscription: '${{ stage.serviceConnection }}'
+                                                scriptType: bash
+                                                scriptLocation: inlineScript
+                                                inlineScript: |
+                                                    az deployment group create \
+                                                    --resource-group ${{ stage.resourceGroup }} \
+                                                    --template-file src/110-apim-policies-global.json \
+                                                    --parameters \
+                                                        environment=${{stage.environment.abbreviation.lowerCase}} \
+                                                        policiesContent="$CONTENT" \
+                                                    --name 110-apim-policies-global \
+                                                    --debug

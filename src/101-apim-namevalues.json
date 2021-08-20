@@ -1,0 +1,79 @@
+{
+    "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+    "contentVersion": "1.0.0.0",
+  "parameters": {
+    "environment": {
+      "type": "string",
+      "defaultValue": "dev",
+      "allowedValues": [
+        "dev",
+        "uat"
+      ]
+    },
+    "apim-authorization-server-audience": {
+      "type": "string",
+      "defaultValue": ""
+    },
+    "apim-authorization-server-issuer": {
+      "type": "string",
+      "defaultValue": ""
+    },
+    "apim-authorization-server-url": {
+      "type": "string",
+      "defaultValue": ""
+    },
+    "externalGwIdproviderApiKey": {
+      "type": "securestring",
+      "defaultValue": ""
+    }
+  },
+    "variables": {
+        "apimServiceInstanceName": "[concat('apim-', parameters('environment'), '-mg')]",
+        "externalGwIdProviderApiKeyName": "[concat(variables('apimServiceInstanceName'), '/', 'external-gw-idprovider-api-key')]",
+        "authorizationServerAudienceName": "[concat(variables('apimServiceInstanceName'), '/', 'authorization-server-audience')]",
+        "authorizationServerIssuerName": "[concat(variables('apimServiceInstanceName'), '/', 'authorization-server-issuer')]",
+        "authorizationServerUrlName": "[concat(variables('apimServiceInstanceName'), '/', 'authorization-server-url')]"
+    },
+  "resources": [
+    {
+      "type": "Microsoft.ApiManagement/service/namedValues",
+      "apiVersion": "2019-12-01",
+      "name": "[variables('externalGwIdproviderApiKeyName')]",
+      "properties": {
+        "secret": true,
+        "displayName": "external-gw-idprovider-api-key",
+        "value": "[parameters('externalGwIdproviderApiKey')]"
+      }
+    },
+    {
+      "type": "Microsoft.ApiManagement/service/namedValues",
+      "apiVersion": "2019-12-01",
+      "name": "[variables('authorizationServerAudienceName')]",
+      "properties": {
+        "secret": true,
+        "displayName": "authorization-server-audience",
+        "value": "[parameters('apim-authorization-server-audience')]"
+      }
+    },
+    {
+      "type": "Microsoft.ApiManagement/service/namedValues",
+      "apiVersion": "2019-12-01",
+      "name": "[variables('authorizationServerIssuerName')]",
+      "properties": {
+        "secret": true,
+        "displayName": "authorization-server-issuer",
+        "value": "[parameters('apim-authorization-server-issuer')]"
+      }
+    },
+    {
+      "type": "Microsoft.ApiManagement/service/namedValues",
+      "apiVersion": "2019-12-01",
+      "name": "[variables('authorizationServerUrlName')]",
+      "properties": {
+        "secret": true,
+        "displayName": "authorization-server-url",
+        "value": "[parameters('apim-authorization-server-url')]"
+      }
+    }
+  ]
+}

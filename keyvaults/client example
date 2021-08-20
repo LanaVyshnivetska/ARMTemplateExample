@@ -1,0 +1,60 @@
+"properties": {
+                "serverFarmId": "[resourceId('Microsoft.Web/serverfarms', parameters('hostingPlanName'))]",
+                "httpsOnly": true,
+                "siteConfig": {
+                    "appSettings": [
+                        {
+                            "name": "AzureWebJobsStorage",
+                            "value": "[concat('DefaultEndpointsProtocol=https;AccountName=', parameters('funcsStorageAccountName'), ';EndpointSuffix=', environment().suffixes.storage, ';AccountKey=',listkeys(resourceId('Microsoft.Storage/storageAccounts', parameters('funcsStorageAccountName')), '2019-06-01').keys[0].value,';')]"
+                        },
+                        {
+                            "name": "FUNCTIONS_EXTENSION_VERSION",
+                            "value": "~3"
+                        },
+                        {
+                            "name": "FUNCTIONS_WORKER_RUNTIME",
+                            "value": "[parameters('runtime')]"
+                        },
+                        {
+                            "name": "WEBSITE_VNET_ROUTE_ALL",
+                            "value": 1
+                        },
+                        {
+                            "name": "WEBSITE_DYNAMIC_CACHE",
+                            "value": 0
+                        },
+                        {
+                            "name": "WEBSITE_LOCAL_CACHE_OPTION",
+                            "value": "Never"
+                        },
+                        {
+                            "name": "WEBSITE_TIME_ZONE",
+                            "value": "AUS Eastern Standard Time"
+                        },
+                        {
+                            "name": "WEBSITE_LOAD_CERTIFICATES",
+                            "value": "*"
+                        },
+                        {
+                            "name": "SslCertThumbprint",
+                            "value": "[parameters('sslRootCertificateThumbprint')]"
+                        }
+                    ]
+                }
+            },
+
+
+            ..
+
+        {
+            "type": "Microsoft.Web/sites/publicCertificates",
+            "apiVersion": "2018-11-01",
+            "name": "[concat(variables('functionAppName'), '/challenger root')]",
+            "dependsOn": [
+                "[resourceId('Microsoft.Web/sites', variables('functionAppName'))]"
+            ],
+            "properties": {
+                "blob": "...",
+                "publicCertificateLocation": "CurrentUserMy"
+            }
+        },

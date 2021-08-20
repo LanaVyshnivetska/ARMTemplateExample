@@ -1,0 +1,42 @@
+trigger:
+    - master
+    - feature/*
+    - features/*
+    - refs/tag/master*
+
+resources:
+    repositories:
+    -
+        repository: self
+        clean: true
+        type: git
+
+variables:
+    vmImage: ubuntu-18.04
+
+stages:
+-
+    template: templates/deploy-template.apim.yaml
+    parameters:
+        vmImage: $(vmImage)
+        stages:
+        -
+            environment:
+                name: Development
+                abbreviation:
+                    upperCase: AZURE_DEV
+                    lowerCase: dev
+            resourceGroup: "<your resource group here>"
+            serviceConnection: <your service connection here>     
+            variableGroupName: dev-azure-api-management
+        -
+            environment:
+                name: UAT
+                abbreviation:
+                    upperCase: AZURE_UAT
+                    lowerCase: uat
+            dependsOn: AZURE_DEV_Deploy_APIM
+            resourceGroup: "<your UAT resource group here>"
+            serviceConnection: <your UAT service connection here>
+            variableGroupName: uat-azure-api-management
+            condition: and(succeeded(), eq(variables['Build.SourceBranch'], 'refs/heads/master'))

@@ -1,0 +1,57 @@
+{
+  "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentParameters.json#",
+  "contentVersion": "1.0.0.0",
+  "parameters": {
+    "environment": {
+      "value": "uat"
+    },
+    "vnetRG": {
+      "value": "<..>"
+    },
+    "vnetName": {
+      "value": "<.....>"
+    },
+    "subnetName": {
+      "value": "<......>"
+    },
+    "apimSku": {
+      "value": "Developer"
+    },
+    "apimSkuCapacity": {
+      "value": "1"
+    },
+    "apimGatewayHostName": {
+      "value": "<....>"
+    },
+    "apimDevPortalHostName": {
+      "value": "<...>"
+    },
+    "apimGatewayCertVersion": {
+      "value": "90d121f9092b47c596bb9c1fe484d95b"
+    },
+    "apimDevPortalCertVersion": {
+      "value": "153d4c7e5518413bba3dffc1837ab344"
+    },
+    "publisher": {
+      "value": {
+        "name": "APIM Example",
+        "email": "email"
+      }
+    },
+    "logWorkspaceId": {
+      "value": "/subscriptions/a2824aaa-a65b-4582-afa8-46b00a5b8ec0/resourcegroups/<resource group name>/providers/microsoft.operationalinsights/workspaces/lws-chal-dev"
+    },
+    "logSettingName": {
+      "value": "<...>"
+    },
+    "logRetentionDays": {
+        "value": 0
+    },
+    "metricRetentionDays": {
+        "value": 0
+    },
+    "actionGroupId": {
+        "value": "/subscriptions/a2824aaa-a65b-4582-afa8-46b00a5b8ec0/resourceGroups/<resource group name>/providers/microsoft.insights/actiongroups/Notification Group"
+    }
+  }
+}

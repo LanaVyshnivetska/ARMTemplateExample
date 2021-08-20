@@ -1,0 +1,56 @@
+{
+    "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+    "contentVersion": "1.0.0.0",
+    "parameters": {
+        "apimServiceInstanceName": {
+            "type": "string",
+            "defaultValue": ""
+        },
+        "endpoints": {
+            "type": "object",
+            "defaultValue": null
+        },
+        "clientSecret": {
+            "type": "securestring",
+            "defaultValue": "clientSecret"
+        },
+        "clientId": {
+            "type": "securestring",
+            "defaultValue": "clientId"
+        }
+    },
+    "variables": {
+        "authorizationServerName": "[concat(parameters('apimServiceInstanceName'), '/', 'idprovider-integration')]"
+    },
+    "resources": [
+        {
+            "type": "Microsoft.ApiManagement/service/authorizationServers",
+            "apiVersion": "2019-12-01",
+            "name": "[variables('authorizationServerName')]",
+            "properties": {
+                "displayName": "Identity Provider Integration",
+                "description": "Enable OAuth2 with IDProvider",
+                "clientRegistrationEndpoint": "[parameters('endpoints').registration]",
+                "authorizationEndpoint": "[parameters('endpoints').authorization]",
+                "authorizationMethods": [
+                    "GET"
+                ],
+                "clientAuthenticationMethod": [
+                    "body"
+                ],
+                "tokenEndpoint": "[parameters('endpoints').token]",
+                "tokenBodyParameters": [],
+                "supportState": false,
+                "defaultScope": "openid",
+                "grantTypes": [
+                    "authorizationCode"
+                ],
+                "bearerTokenSendingMethods": [
+                    "authorizationHeader"
+                ],
+                "clientId": "[parameters('clientId')]",
+                "clientSecret": "[parameters('clientSecret')]"
+            }
+        }
+    ]
+}

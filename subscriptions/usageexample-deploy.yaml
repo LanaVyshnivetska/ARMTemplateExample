@@ -1,0 +1,15 @@
+- 
+    task: AzureCLI@2
+    displayName: 'Create ${{stage.environment.abbreviation.upperCase}} subscriptions for APIM'
+    timeoutInMinutes: 120
+    inputs:
+        azureSubscription: '${{ stage.serviceConnection }}'
+        scriptType: bash
+        scriptLocation: inlineScript
+        inlineScript: |
+            az deployment group create \
+            --resource-group ${{ stage.resourceGroup }} \
+            --template-file arm-templates/103-subscriptions.json \
+            --parameters arm-templates/103-subscriptions-${{stage.environment.abbreviation.lowerCase}}.parameters.json \
+            --name 103-subscriptions \
+            --debug

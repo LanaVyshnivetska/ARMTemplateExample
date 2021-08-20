@@ -1,0 +1,35 @@
+{
+    "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+    "contentVersion": "1.0.0.0",
+    "parameters": {
+        "environment": {
+            "type": "string",                
+            "defaultValue": "dev",
+            "allowedValues": [
+                "dev",
+                "uat"
+            ]
+        },
+        "policiesContent": {
+            "type": "string",
+            "metadata": {
+                "description": "Policy document will be injected at build time out of the policies XML"
+            }
+        }
+    },
+    "variables": {
+        "apimServiceInstanceName": "[concat('apim-', parameters('environment'), '-mg')]",
+        "apimServicePoliciesName": "[concat(variables('apimServiceInstanceName'), '/', 'policy')]"
+    },
+    "resources": [
+       {
+            "type": "Microsoft.ApiManagement/service/policies",
+            "apiVersion": "2019-12-01",
+            "name": "[variables('apimServicePoliciesName')]",
+            "properties": {
+                "value": "[parameters('policiesContent')]",
+                "format": "rawxml"
+            }
+        }
+    ]
+}

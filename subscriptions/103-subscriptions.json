@@ -1,0 +1,42 @@
+{
+    "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+    "contentVersion": "1.0.0.0",
+    "parameters": {
+        "apimInstanceName": {
+            "type": "string",
+            "defaultValue": ""
+        }
+    },
+  "resources": [
+    {
+      "name": "[concat(parameters('apimInstanceName'), '/', 'api1-subscription')]",
+      "type": "Microsoft.ApiManagement/service/subscriptions",
+      "apiVersion": "2019-12-01",
+      "properties": {
+        "scope": "/apis/myapi-internal",
+        "displayName": "api1-myapi",
+        "state": "active"
+      }
+    },
+    {
+      "name": "[concat(parameters('apimInstanceName'), '/', 'api2-subscription')]",
+      "type": "Microsoft.ApiManagement/service/subscriptions",
+      "apiVersion": "2019-12-01",
+      "properties": {
+        "scope": "/apis/myapi-internal",
+        "displayName": "api2-myapi",
+        "state": "active"
+      }
+    },
+    {
+      "name": "[concat(parameters('apimInstanceName'), '/', 'api3-subscription')]",
+      "type": "Microsoft.ApiManagement/service/subscriptions",
+      "apiVersion": "2019-12-01",
+      "properties": {
+        "scope": "/apis/myapi-internal",
+        "displayName": "api3-myapi",
+        "state": "active"
+      }
+    }
+  ]
+}

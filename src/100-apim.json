@@ -1,0 +1,268 @@
+{
+    "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+    "contentVersion": "1.0.0.0",
+    "parameters": {
+        "environment": {
+            "type": "string",
+            "defaultValue": "dev",
+            "allowedValues": [
+                "dev",
+                "uat"
+            ],
+            "metadata": {
+                "description": "The environment to deploy to"
+            }
+        },
+        "vnetRG": {
+            "type": "string",
+            "defaultValue": "<...>",
+            "allowedValues": [
+                "<...>",
+                "<...>"
+            ],
+            "metadata": {
+                "description": "The name of the Resource Group the virtual network belongs to"
+            }
+        },
+        "vnetName": {
+            "type": "string",
+            "allowedValues": [
+                "VNET-DEV-DEVNET"
+            ],
+            "metadata": {
+                "description": "The name of the virtual network the subnet belongs to."
+            }
+        },
+        "subnetName": {
+            "type": "string",
+            "allowedValues": [
+                "snet-dev-web-1",
+                "snet-test-web-1"
+            ],
+            "metadata": {
+                "description": "The name of the subnet to deploy to."
+            }
+        },
+        "apimSku": {
+            "type": "string",
+            "defaultValue": ""
+        },
+        "apimSkuCapacity": {
+            "type": "string",
+            "defaultValue": "1"
+        },
+        "publisher": {
+            "type": "object",
+            "defaultValue": null
+        },
+        "apimGatewayHostName": {
+            "type": "string",
+            "defaultValue": "<...>"
+        },
+        "apimDevPortalHostName": {
+            "type": "string",
+            "defaultValue": "<...>"
+        },
+        "apimGatewayCertVersion": {
+            "type": "string",
+            "metadata": {
+                "description": "the KeyVault version of the API Gateway certificate"
+            }
+        },
+        "apimDevPortalCertVersion": {
+            "type": "string",
+            "metadata": {
+                "description": "the KeyVault version of the API Dev Portal certificate"
+            }
+        },
+        "apimCertificatePassword": {
+            "type": "securestring",
+            "defaultValue": "",
+            "metadata": {
+                "description": "The password used for APIM Dev Portal."
+            }
+        },
+        "logWorkspaceId": {
+            "type": "String"
+        },
+        "logSettingName": {
+            "type": "String"
+        },
+        "logRetentionDays": {
+            "type": "int"
+        },
+        "metricRetentionDays": {
+            "type": "int"
+        },
+        "actionGroupId": {
+            "type": "String",
+            "metadata": {
+                "description": "Used to send alerts to"
+            }
+        }
+    },
+    "variables": {
+        "subnetResourceId": "[resourceId(parameters('vnetRG'), 'Microsoft.Network/virtualNetworks/subnets', parameters('vnetName'), parameters('subnetName'))]",
+        "apimServiceInstanceName": "[concat('apim-', parameters('environment'), '-mg')]",
+        "apimGatewayCertKVId": "[concat('https://kv-',  parameters('environment'), '-mg-api-1.vault.azure.net/secrets/',  parameters('environment'), '-apim-gateway-cert/', parameters('apimGatewayCertVersion') )]",
+        "apimDevPortalCertKVId": "[concat('https://kv-', parameters('environment'), '-mg-api-1.vault.azure.net/secrets/',  parameters('environment'), '-apim-developer-portal-cert/', parameters('apimDevPortalCertVersion'))]"
+    },
+    "resources": [
+        {
+            "type": "Microsoft.ApiManagement/service",
+            "apiVersion": "2019-12-01",
+            "name": "[variables('apimServiceInstanceName')]",
+            "location": "[resourceGroup().location]",
+            "identity": {
+                "type": "SystemAssigned"
+            },
+            "sku": {
+                "name": "[parameters('apimSku')]",
+                "capacity": "[parameters('apimSkuCapacity')]"
+            },
+            "properties": {
+                "publisherEmail": "[parameters('publisher').email]",
+                "publisherName": "[parameters('publisher').name]",
+                "notificationSenderEmail": "apimgmt-noreply@mail.windowsazure.com",
+                "hostnameConfigurations": [
+                    {
+                        "type": "Proxy",
+                        "hostName": "[parameters('apimGatewayHostName')]",
+                        "negotiateClientCertificate": false,
+                        "keyVaultId": "[variables('apimGatewayCertKVId')]",
+                        "certificatePassword": "[parameters('apimCertificatePassword')]",
+                        "defaultSslBinding": true
+                    },
+                    {
+                        "type": "Portal",
+                        "hostName": "[parameters('apimDevPortalHostName')]",
+                        "negotiateClientCertificate": false,
+                        "keyVaultId": "[variables('apimDevPortalCertKVId')]",
+                        "certificatePassword": "[parameters('apimCertificatePassword')]",
+                        "defaultSslBinding": false
+                    }
+                ],
+                "customProperties": {
+                    "Microsoft.WindowsAzure.ApiManagement.Gateway.Security.Protocols.Tls10": "False",
+                    "Microsoft.WindowsAzure.ApiManagement.Gateway.Security.Protocols.Tls11": "False",
+                    "Microsoft.WindowsAzure.ApiManagement.Gateway.Security.Protocols.Ssl30": "False",
+                    "Microsoft.WindowsAzure.ApiManagement.Gateway.Security.Ciphers.TripleDes168": "False",
+                    "Microsoft.WindowsAzure.ApiManagement.Gateway.Security.Backend.Protocols.Tls10": "False",
+                    "Microsoft.WindowsAzure.ApiManagement.Gateway.Security.Backend.Protocols.Tls11": "False",
+                    "Microsoft.WindowsAzure.ApiManagement.Gateway.Security.Backend.Protocols.Ssl30": "False"
+                },
+                "virtualNetworkConfiguration": {
+                    "subnetResourceId": "[variables('subnetResourceId')]"
+                },
+                "virtualNetworkType": "Internal"
+            },
+            "resources": [
+                {
+                    "type": "providers/diagnosticSettings",
+                    "apiVersion": "2017-05-01-preview",
+                    "name": "[concat('Microsoft.Insights/', parameters('logSettingName'))]",
+                    "dependsOn": [
+                        "[resourceId('Microsoft.ApiManagement/service', variables('apimServiceInstanceName'))]"
+                    ],
+                    "properties": {
+                        "workspaceId": "[parameters('logWorkspaceId')]",
+                        "logAnalyticsDestinationType": "Dedicated",
+                        "metrics": [
+                            {
+                                "timeGrain": "PT1M",
+                                "category": "AllMetrics",
+                                "enabled": true,
+                                "retentionPolicy": {
+                                    "enabled": true,
+                                    "days": "[parameters('metricRetentionDays')]"
+                                }
+                            }
+                        ],
+                        "logs": [
+                            {
+                                "category": "GatewayLogs",
+                                "enabled": true,
+                                "retentionPolicy": {
+                                    "enabled": true,
+                                    "days": "[parameters('logRetentionDays')]"
+                                }
+                            }
+                        ]
+                    }
+                }
+            ]
+        },
+        {
+            "name": "[concat(variables('apimServiceInstanceName'),' alert')]",
+            "type": "Microsoft.Insights/metricAlerts",
+            "location": "global",
+            "apiVersion": "2018-03-01",
+            "tags": {},
+            "properties": {
+                "description": "New metric alert created via template",
+                "severity": 3,
+                "enabled": true,
+                "scopes": [ "[resourceId('Microsoft.ApiManagement/service', variables('apimServiceInstanceName'))]" ],
+                "evaluationFrequency": "PT5M",
+                "windowSize": "PT5M",
+                "criteria": {
+                    "odata.type": "Microsoft.Azure.Monitor.SingleResourceMultipleMetricCriteria",
+                    "allOf": [
+                        {
+                            "name": "criterion 1",
+                            "metricName": "BackendDuration",
+                            "dimensions": [],
+                            "operator": "GreaterThanOrEqual",
+                            "threshold": 10000,
+                            "timeAggregation": "Maximum"
+                        },
+                        {
+                            "name": "criterion 2",
+                            "metricName": "Requests",
+                            "dimensions": [],
+                            "operator": "GreaterThanOrEqual",
+                            "threshold": 2000,
+                            "timeAggregation": "Total"
+                        }
+                    ]
+                },
+                "actions": [
+                    {
+                        "actionGroupId": "[parameters('actionGroupId')]"
+                    }
+                ]
+            }
+        },
+        {
+            "name": "[concat(variables('apimServiceInstanceName'),' query alert')]",
+            "type": "Microsoft.Insights/scheduledQueryRules",
+            "location": "Australia East",
+            "apiVersion": "2020-05-01-preview",
+            "tags": {},
+            "properties": {
+                "description": "New query alert created via template",
+                "severity": "3",
+                "enabled": true,
+                "scopes": [ "[resourceId('Microsoft.ApiManagement/service', variables('apimServiceInstanceName'))]" ],
+                "evaluationFrequency":"PT5M",
+                "windowSize": "PT5M",
+                "criteria": {
+                    "allOf": [
+                        {
+                            "query": "ApiManagementGatewayLogs | where ResponseCode >=400 and ResponseCode <600 and TimeGenerated > ago(5m) | summarize count() by ResponseCode , bin(TimeGenerated , 5m) | where count_ > 10",
+                            "operator": "GreaterThan",
+                            "threshold" : "0",
+                            "timeAggregation": "Total",
+                            "metricMeasureColumn": "count_"
+                        }
+                    ]
+                },                
+                "actions": [
+                    {
+                        "actionGroupId": "[parameters('actionGroupId')]"
+                    }
+                ]
+            }
+        }
+    ]
+}

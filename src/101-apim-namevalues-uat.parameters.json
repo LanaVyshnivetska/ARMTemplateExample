@@ -1,0 +1,18 @@
+{
+  "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentParameters.json#",
+  "contentVersion": "1.0.0.0",
+  "parameters": {
+    "environment": {
+      "value": "uat"
+    },
+    "apim-authorization-server-audience": {
+      "value": "https://url"
+    },
+    "apim-authorization-server-issuer": {
+      "value": "https://uat auth server issuer url"
+    },
+    "apim-authorization-server-url": {
+      "value": "https://uat auth server issuer url"
+    }
+  }
+}

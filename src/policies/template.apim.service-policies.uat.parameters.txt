@@ -1,0 +1,3 @@
+<origin>https://cdn endpoint here</origin>
+<origin>https://uat url</origin>
+<origin>http://localhost:3002</origin>
